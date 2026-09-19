@@ -1,4 +1,4 @@
-# Learn Quantization: From Math to a GPU Cluster on a 2015 Laptop
+# Learn Quantization: From Math to a GPU Cluster on a Laptop
 
 This repo is a hands-on walkthrough of LLM quantization, built by deliberately
 using **old, constrained hardware** instead of a modern datacenter GPU. That
