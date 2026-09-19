@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: llama-model-cache
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llama-server
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # only one GPU in the cluster; can't run old+new pods at once
+  selector:
+    matchLabels:
+      app: llama-server
+  template:
+    metadata:
+      labels:
+        app: llama-server
+    spec:
+      runtimeClassName: nvidia
+      containers:
+        - name: llama-server
+          image: ghcr.io/ggml-org/llama.cpp:server-cuda
+          args:
+            - "-hf"
+            - "Qwen/Qwen2.5-0.5B-Instruct-GGUF:Q4_K_M"
+            - "--port"
+            - "8080"
+            - "--host"
+            - "0.0.0.0"
+            - "--n-gpu-layers"
+            - "99"
+          # To serve a model you quantized yourself with convert_and_quantize.sh,
+          # replace the two args above with:
+          #   - "-m"
+          #   - "/root/.cache/llama.cpp/custom/<your-file>.gguf"
+          ports:
+            - containerPort: 8080
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+          volumeMounts:
+            - name: model-cache
+              mountPath: /root/.cache/llama.cpp
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 5
+            failureThreshold: 60 # up to 5 minutes for first-time model download+load
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 10
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: llama-model-cache
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: llama-server
+spec:
+  selector:
+    app: llama-server
+  ports:
+    - port: 8080
+      targetPort: 8080

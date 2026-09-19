@@ -1,0 +1,9 @@
+# Install torch first, matching your CUDA version:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu124
+# Then:
+numpy
+transformers
+accelerate
+bitsandbytes
+fastapi
+uvicorn
